@@ -5,7 +5,9 @@
  * Pharmacy Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { VelocityRow } from "./velocityRow";
 
-export interface HealthStatus {
-  status: string;
+export interface VelocityReport {
+  fast: VelocityRow[];
+  slow: VelocityRow[];
 }

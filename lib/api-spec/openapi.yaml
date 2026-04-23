@@ -3,34 +3,841 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Pharmacy Management System API
 servers:
   - url: /api
     description: Base API path
 tags:
-  - name: health
-    description: Health operations
+  - { name: health }
+  - { name: dashboard }
+  - { name: medicines }
+  - { name: batches }
+  - { name: suppliers }
+  - { name: customers }
+  - { name: doctors }
+  - { name: sales }
+  - { name: analytics }
+  - { name: alerts }
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
           content:
             application/json:
+              schema: { $ref: "#/components/schemas/HealthStatus" }
+
+  # ─── Dashboard ─────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardSummary" }
+
+  /dashboard/profit-trend:
+    get:
+      operationId: getProfitTrend
+      tags: [dashboard]
+      parameters:
+        - { name: days, in: query, schema: { type: integer, default: 7 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
               schema:
-                $ref: "#/components/schemas/HealthStatus"
+                type: array
+                items: { $ref: "#/components/schemas/ProfitPoint" }
+
+  # ─── Medicines ─────────────────────────────────────────────
+  /medicines:
+    get:
+      operationId: listMedicines
+      tags: [medicines]
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Medicine" }
+    post:
+      operationId: createMedicine
+      tags: [medicines]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MedicineInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Medicine" }
+
+  /medicines/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getMedicine
+      tags: [medicines]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MedicineDetail" }
+
+  # ─── Batches (inventory + expiry) ──────────────────────────
+  /batches:
+    get:
+      operationId: listBatches
+      tags: [batches]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [all, low, near_expiry, expired] } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Batch" }
+    post:
+      operationId: createBatch
+      tags: [batches]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BatchInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Batch" }
+
+  /batches/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getBatch
+      tags: [batches]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Batch" }
+    delete:
+      operationId: deleteBatch
+      tags: [batches]
+      responses:
+        "204": { description: Deleted }
+
+  # ─── Suppliers ─────────────────────────────────────────────
+  /suppliers:
+    get:
+      operationId: listSuppliers
+      tags: [suppliers]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SupplierWithBalance" }
+    post:
+      operationId: createSupplier
+      tags: [suppliers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Supplier" }
+
+  /suppliers/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getSupplier
+      tags: [suppliers]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierDetail" }
+
+  /purchase-orders:
+    post:
+      operationId: createPurchaseOrder
+      tags: [suppliers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PurchaseOrderInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PurchaseOrder" }
+
+  /purchase-orders/{id}/payments:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: payPurchaseOrder
+      tags: [suppliers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierPaymentInput" }
+      responses:
+        "201":
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PurchaseOrder" }
+
+  # ─── Customers + Udhari ────────────────────────────────────
+  /customers:
+    get:
+      operationId: listCustomers
+      tags: [customers]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CustomerWithBalance" }
+    post:
+      operationId: createCustomer
+      tags: [customers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CustomerInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Customer" }
+
+  /customers/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getCustomer
+      tags: [customers]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomerDetail" }
+
+  /customers/{id}/udhari:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: addUdhariEntry
+      tags: [customers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UdhariEntryInput" }
+      responses:
+        "201":
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UdhariEntry" }
+
+  # ─── Doctors ───────────────────────────────────────────────
+  /doctors:
+    get:
+      operationId: listDoctors
+      tags: [doctors]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DoctorWithStats" }
+    post:
+      operationId: createDoctor
+      tags: [doctors]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DoctorInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Doctor" }
+
+  # ─── Sales (POS) ───────────────────────────────────────────
+  /sales:
+    get:
+      operationId: listSales
+      tags: [sales]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SaleSummary" }
+    post:
+      operationId: createSale
+      tags: [sales]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SaleInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sale" }
+
+  /sales/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getSale
+      tags: [sales]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sale" }
+
+  # ─── Analytics ─────────────────────────────────────────────
+  /analytics/velocity:
+    get:
+      operationId: getStockVelocity
+      tags: [analytics]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VelocityReport" }
+
+  /analytics/doctors:
+    get:
+      operationId: getDoctorReferrals
+      tags: [analytics]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DoctorReferral" }
+
+  # ─── Alerts ────────────────────────────────────────────────
+  /alerts:
+    get:
+      operationId: listAlerts
+      tags: [alerts]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Alert" }
+
+  /alerts/{id}/ack:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: ackAlert
+      tags: [alerts]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Alert" }
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
-        status:
-          type: string
-      required:
-        - status
+        status: { type: string }
 
+    # ─── Dashboard ─────
+    DashboardSummary:
+      type: object
+      required:
+        - profitTodayMinor
+        - salesTodayMinor
+        - costTodayMinor
+        - lowStockCount
+        - nearExpiryCount
+        - expiredCount
+        - udhariOutstandingMinor
+        - supplierDuesMinor
+        - currency
+      properties:
+        profitTodayMinor: { type: integer }
+        salesTodayMinor: { type: integer }
+        costTodayMinor: { type: integer }
+        lowStockCount: { type: integer }
+        nearExpiryCount: { type: integer }
+        expiredCount: { type: integer }
+        udhariOutstandingMinor: { type: integer }
+        supplierDuesMinor: { type: integer }
+        openAlertsCount: { type: integer }
+        currency: { type: string }
+
+    ProfitPoint:
+      type: object
+      required: [date, profitMinor, salesMinor]
+      properties:
+        date: { type: string, format: date }
+        profitMinor: { type: integer }
+        salesMinor: { type: integer }
+
+    # ─── Medicines ─────
+    Medicine:
+      type: object
+      required: [id, name, reorderLevel, isActive]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        genericName: { type: ["string", "null"] }
+        strength: { type: ["string", "null"] }
+        form: { type: ["string", "null"] }
+        hsnCode: { type: ["string", "null"] }
+        gstPct: { type: number }
+        reorderLevel: { type: integer }
+        isActive: { type: boolean }
+        qtyOnHand: { type: integer }
+        sellPriceMinor: { type: integer }
+
+    MedicineInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        genericName: { type: ["string", "null"] }
+        strength: { type: ["string", "null"] }
+        form: { type: ["string", "null"] }
+        hsnCode: { type: ["string", "null"] }
+        gstPct: { type: number, default: 12 }
+        reorderLevel: { type: integer, default: 10 }
+
+    MedicineDetail:
+      allOf:
+        - $ref: "#/components/schemas/Medicine"
+        - type: object
+          properties:
+            batches:
+              type: array
+              items: { $ref: "#/components/schemas/Batch" }
+
+    # ─── Batches ─────
+    Batch:
+      type: object
+      required:
+        - id
+        - medicineId
+        - medicineName
+        - batchNumber
+        - expiryDate
+        - buyPriceMinor
+        - sellPriceMinor
+        - qtyOnHand
+      properties:
+        id: { type: string }
+        medicineId: { type: string }
+        medicineName: { type: string }
+        genericName: { type: ["string", "null"] }
+        batchNumber: { type: string }
+        expiryDate: { type: string, format: date }
+        buyPriceMinor: { type: integer }
+        sellPriceMinor: { type: integer }
+        qtyReceived: { type: integer }
+        qtyOnHand: { type: integer }
+        supplierId: { type: ["string", "null"] }
+        supplierName: { type: ["string", "null"] }
+        rawOcrText: { type: ["string", "null"] }
+        daysToExpiry: { type: integer }
+        status: { type: string, enum: [ok, low, near_expiry, expired] }
+
+    BatchInput:
+      type: object
+      required:
+        - medicineName
+        - batchNumber
+        - expiryDate
+        - buyPriceMinor
+        - sellPriceMinor
+        - qtyReceived
+      properties:
+        medicineId: { type: ["string", "null"] }
+        medicineName: { type: string }
+        genericName: { type: ["string", "null"] }
+        batchNumber: { type: string }
+        expiryDate: { type: string, format: date }
+        buyPriceMinor: { type: integer }
+        sellPriceMinor: { type: integer }
+        qtyReceived: { type: integer }
+        supplierId: { type: ["string", "null"] }
+        rawOcrText: { type: ["string", "null"] }
+
+    # ─── Suppliers ─────
+    Supplier:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        contactPhone: { type: ["string", "null"] }
+        gstin: { type: ["string", "null"] }
+        address: { type: ["string", "null"] }
+        creditDays: { type: integer }
+
+    SupplierWithBalance:
+      allOf:
+        - $ref: "#/components/schemas/Supplier"
+        - type: object
+          required: [outstandingMinor, totalPurchasedMinor, invoiceCount]
+          properties:
+            outstandingMinor: { type: integer }
+            totalPurchasedMinor: { type: integer }
+            invoiceCount: { type: integer }
+            nextDueDate: { type: ["string", "null"], format: date }
+
+    SupplierInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        contactPhone: { type: ["string", "null"] }
+        gstin: { type: ["string", "null"] }
+        address: { type: ["string", "null"] }
+        creditDays: { type: integer, default: 30 }
+
+    SupplierDetail:
+      allOf:
+        - $ref: "#/components/schemas/SupplierWithBalance"
+        - type: object
+          properties:
+            invoices:
+              type: array
+              items: { $ref: "#/components/schemas/PurchaseOrder" }
+
+    PurchaseOrder:
+      type: object
+      required:
+        - id
+        - supplierId
+        - supplierName
+        - invoiceNumber
+        - invoiceDate
+        - totalMinor
+        - paidMinor
+        - status
+      properties:
+        id: { type: string }
+        supplierId: { type: string }
+        supplierName: { type: string }
+        invoiceNumber: { type: string }
+        invoiceDate: { type: string, format: date }
+        dueDate: { type: ["string", "null"], format: date }
+        totalMinor: { type: integer }
+        paidMinor: { type: integer }
+        status: { type: string, enum: [pending, partial, paid] }
+        notes: { type: ["string", "null"] }
+
+    PurchaseOrderLineInput:
+      type: object
+      required: [medicineName, batchNumber, expiryDate, qty, buyPriceMinor, sellPriceMinor]
+      properties:
+        medicineId: { type: ["string", "null"] }
+        medicineName: { type: string }
+        batchNumber: { type: string }
+        expiryDate: { type: string, format: date }
+        qty: { type: integer }
+        buyPriceMinor: { type: integer }
+        sellPriceMinor: { type: integer }
+
+    PurchaseOrderInput:
+      type: object
+      required: [supplierId, invoiceNumber, invoiceDate, lines]
+      properties:
+        supplierId: { type: string }
+        invoiceNumber: { type: string }
+        invoiceDate: { type: string, format: date }
+        dueDate: { type: ["string", "null"], format: date }
+        notes: { type: ["string", "null"] }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/PurchaseOrderLineInput" }
+
+    SupplierPaymentInput:
+      type: object
+      required: [amountMinor, method]
+      properties:
+        amountMinor: { type: integer }
+        method: { type: string, enum: [cash, upi, bank, cheque] }
+        reference: { type: ["string", "null"] }
+
+    # ─── Customers / Udhari ─────
+    Customer:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        phone: { type: ["string", "null"] }
+        address: { type: ["string", "null"] }
+        udhariLimitMinor: { type: integer }
+        notes: { type: ["string", "null"] }
+
+    CustomerWithBalance:
+      allOf:
+        - $ref: "#/components/schemas/Customer"
+        - type: object
+          required: [balanceMinor]
+          properties:
+            balanceMinor: { type: integer }
+            lastActivityAt: { type: ["string", "null"], format: date-time }
+
+    CustomerInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        phone: { type: ["string", "null"] }
+        address: { type: ["string", "null"] }
+        udhariLimitMinor: { type: integer, default: 0 }
+        notes: { type: ["string", "null"] }
+
+    UdhariEntry:
+      type: object
+      required: [id, customerId, amountMinor, enteredAt]
+      properties:
+        id: { type: string }
+        customerId: { type: string }
+        saleId: { type: ["string", "null"] }
+        amountMinor: { type: integer, description: "positive=owes, negative=paid" }
+        note: { type: ["string", "null"] }
+        enteredAt: { type: string, format: date-time }
+
+    UdhariEntryInput:
+      type: object
+      required: [amountMinor]
+      properties:
+        amountMinor: { type: integer }
+        note: { type: ["string", "null"] }
+
+    CustomerDetail:
+      allOf:
+        - $ref: "#/components/schemas/CustomerWithBalance"
+        - type: object
+          properties:
+            entries:
+              type: array
+              items: { $ref: "#/components/schemas/UdhariEntry" }
+
+    # ─── Doctors ─────
+    Doctor:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        qualification: { type: ["string", "null"] }
+        clinic: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        registrationNo: { type: ["string", "null"] }
+
+    DoctorWithStats:
+      allOf:
+        - $ref: "#/components/schemas/Doctor"
+        - type: object
+          required: [scriptCount30d, revenueMinor30d]
+          properties:
+            scriptCount30d: { type: integer }
+            revenueMinor30d: { type: integer }
+
+    DoctorInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        qualification: { type: ["string", "null"] }
+        clinic: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        registrationNo: { type: ["string", "null"] }
+
+    # ─── Sales ─────
+    SaleLineInput:
+      type: object
+      required: [batchId, qty, sellPriceMinor]
+      properties:
+        batchId: { type: string }
+        qty: { type: integer }
+        sellPriceMinor: { type: integer }
+        discountMinor: { type: integer, default: 0 }
+
+    SaleLine:
+      type: object
+      required: [id, batchId, medicineName, qty, sellPriceMinor, lineTotalMinor]
+      properties:
+        id: { type: string }
+        batchId: { type: string }
+        medicineName: { type: string }
+        batchNumber: { type: string }
+        qty: { type: integer }
+        sellPriceMinor: { type: integer }
+        buyPriceMinor: { type: integer }
+        discountMinor: { type: integer }
+        lineTotalMinor: { type: integer }
+
+    SaleInput:
+      type: object
+      required: [lines, paymentMethod]
+      properties:
+        customerId: { type: ["string", "null"] }
+        doctorId: { type: ["string", "null"] }
+        prescriptionNo: { type: ["string", "null"] }
+        discountMinor: { type: integer, default: 0 }
+        paymentMethod: { type: string, enum: [cash, upi, card, udhari] }
+        paidMinor: { type: integer }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/SaleLineInput" }
+
+    SaleSummary:
+      type: object
+      required: [id, invoiceNo, totalMinor, profitMinor, paymentMethod, soldAt]
+      properties:
+        id: { type: string }
+        invoiceNo: { type: string }
+        customerName: { type: ["string", "null"] }
+        doctorName: { type: ["string", "null"] }
+        totalMinor: { type: integer }
+        profitMinor: { type: integer }
+        paymentMethod: { type: string }
+        soldAt: { type: string, format: date-time }
+
+    Sale:
+      allOf:
+        - $ref: "#/components/schemas/SaleSummary"
+        - type: object
+          required: [lines, subtotalMinor, taxMinor, discountMinor, paidMinor]
+          properties:
+            customerId: { type: ["string", "null"] }
+            doctorId: { type: ["string", "null"] }
+            prescriptionNo: { type: ["string", "null"] }
+            subtotalMinor: { type: integer }
+            taxMinor: { type: integer }
+            discountMinor: { type: integer }
+            paidMinor: { type: integer }
+            costMinor: { type: integer }
+            lines:
+              type: array
+              items: { $ref: "#/components/schemas/SaleLine" }
+
+    # ─── Analytics ─────
+    VelocityRow:
+      type: object
+      required: [medicineId, name, unitsSold30d, qtyOnHand, profitMinor30d, band]
+      properties:
+        medicineId: { type: string }
+        name: { type: string }
+        unitsSold30d: { type: integer }
+        qtyOnHand: { type: integer }
+        revenueMinor30d: { type: integer }
+        profitMinor30d: { type: integer }
+        band: { type: string, enum: [fast, normal, slow] }
+
+    VelocityReport:
+      type: object
+      required: [fast, slow]
+      properties:
+        fast:
+          type: array
+          items: { $ref: "#/components/schemas/VelocityRow" }
+        slow:
+          type: array
+          items: { $ref: "#/components/schemas/VelocityRow" }
+
+    DoctorReferral:
+      type: object
+      required: [doctorId, doctorName, scriptCount, revenueMinor]
+      properties:
+        doctorId: { type: string }
+        doctorName: { type: string }
+        scriptCount: { type: integer }
+        revenueMinor: { type: integer }
+
+    # ─── Alerts ─────
+    Alert:
+      type: object
+      required: [id, kind, title, message, createdAt, acknowledged]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [low_stock, near_expiry, overdue_payment] }
+        title: { type: string }
+        message: { type: string }
+        medicineId: { type: ["string", "null"] }
+        batchId: { type: ["string", "null"] }
+        purchaseOrderId: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        acknowledged: { type: boolean }

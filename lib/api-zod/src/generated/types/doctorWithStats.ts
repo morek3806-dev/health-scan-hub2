@@ -5,7 +5,9 @@
  * Pharmacy Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { Doctor } from "./doctor";
 
-export interface HealthStatus {
-  status: string;
-}
+export type DoctorWithStats = Doctor & {
+  scriptCount30d: number;
+  revenueMinor30d: number;
+};
