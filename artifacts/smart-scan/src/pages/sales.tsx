@@ -27,7 +27,7 @@ export default function Sales() {
   const stats = {
     count: sales?.length || 0,
     revenue: sales?.reduce((acc, s) => acc + s.totalMinor, 0) || 0,
-    profit: sales?.reduce((acc, s) => acc + (s.totalMinor - s.costMinor), 0) || 0,
+    profit: sales?.reduce((acc, s) => acc + (s.profitMinor || 0), 0) || 0,
   };
 
   return (

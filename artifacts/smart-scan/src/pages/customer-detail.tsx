@@ -37,7 +37,7 @@ import { toast } from "sonner";
 export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: customer, isLoading, refetch } = useGetCustomer(id as string);
-  const addUdhariMutation = useAddUdhariEntry(id as string);
+  const addUdhariMutation = useAddUdhariEntry();
 
   const [udhariForm, setUdhariForm] = useState({
     amount: 0,
@@ -53,10 +53,11 @@ export default function CustomerDetail() {
     try {
       const amountMinor = Math.round(udhariForm.amount * 100);
       await addUdhariMutation.mutateAsync({
+        id: id as string,
         data: {
           amountMinor: udhariForm.isPayment ? -amountMinor : amountMinor,
-          note: udhariForm.note || undefined
-        }
+          note: udhariForm.note || undefined,
+        },
       });
       toast.success(udhariForm.isPayment ? "Payment recorded" : "Udhari added");
       setIsDialogOpen(false);
@@ -67,8 +68,9 @@ export default function CustomerDetail() {
     }
   };
 
-  const balancePct = customer.udhariLimitMinor > 0 
-    ? Math.min(100, (customer.balanceMinor / customer.udhariLimitMinor) * 100)
+  const limit = customer.udhariLimitMinor ?? 0;
+  const balancePct = limit > 0
+    ? Math.min(100, (customer.balanceMinor / limit) * 100)
     : 0;
 
   return (
@@ -153,9 +155,9 @@ export default function CustomerDetail() {
             <div className="space-y-4">
               <div className="flex justify-between items-end">
                 <div className="text-3xl font-bold">{formatMoney(customer.balanceMinor)}</div>
-                <div className="text-sm text-muted-foreground">Limit: {formatMoney(customer.udhariLimitMinor)}</div>
+                <div className="text-sm text-muted-foreground">Limit: {formatMoney(limit)}</div>
               </div>
-              {customer.udhariLimitMinor > 0 && (
+              {limit > 0 && (
                 <div className="space-y-1.5">
                   <Progress value={balancePct} className="h-2" />
                   <div className="flex justify-between text-[10px] uppercase font-bold text-muted-foreground">

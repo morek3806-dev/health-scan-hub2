@@ -8,7 +8,6 @@ import {
   useCreateSale 
 } from "@workspace/api-client-react";
 import { formatMoney } from "@/lib/format";
-import { Button } from "@/components/ui/card-border"; // Wait, button is in ui/button
 import { Button as UIButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

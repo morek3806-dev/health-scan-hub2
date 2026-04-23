@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { MedicineBatch } from './types';
+export type { MedicineBatch };
 import { addDays, subDays } from 'date-fns';
 
 type ScanState = {

@@ -44,7 +44,7 @@ export default function SupplierDetail() {
   const { data: supplier, isLoading, refetch } = useGetSupplier(id as string);
   const { data: medicines } = useListMedicines();
   
-  const payMutation = usePayPurchaseOrder(id as string);
+  const payMutation = usePayPurchaseOrder();
   const createPOMutation = useCreatePurchaseOrder();
 
   const [paymentPO, setPaymentPO] = useState<any>(null);
