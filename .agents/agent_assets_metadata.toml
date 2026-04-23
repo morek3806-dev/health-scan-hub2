@@ -1,8 +1,13 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "cUO5-xVtnEa20rUpWgjex"
 uri = "file://artifacts/smart-scan/public/samples/sample-bill.png"
 type = "image"
 title = "sample pharmacy bill"
+
+[[outputs]]
+id = "kGSPkeRKrhGyduLkYMxMD"
+uri = "file://design/pharmacy-management-system.md"
+type = "text"
+title = "Pharmacy Management System — Design Specification"
