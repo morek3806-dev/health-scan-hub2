@@ -11,7 +11,9 @@ import { formatMoney } from "@/lib/format";
 import { Button as UIButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, ShoppingCart, Plus, Minus, Trash2, User, Stethoscope, CreditCard, Loader2 } from "lucide-react";
+import { Search, ShoppingCart, Plus, Minus, Trash2, User, Stethoscope, CreditCard, Loader2, ScanBarcode } from "lucide-react";
+import { BarcodeScanner } from "@/components/barcode-scanner";
+import { listBatches } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -52,7 +54,37 @@ export default function POS() {
   const createSaleMutation = useCreateSale();
 
   const [selectedMedForBatch, setSelectedMedForBatch] = useState<any>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const { data: batches } = useListBatches({ medicineId: selectedMedForBatch?.id } as any);
+
+  const handleScanned = async (code: string) => {
+    setScannerOpen(false);
+    try {
+      const matches = await listBatches({ search: code });
+      const exact =
+        matches.find((b) => b.batchNumber?.toLowerCase() === code.toLowerCase()) ?? matches[0];
+      if (!exact) {
+        toast.error(`No batch matched "${code}"`);
+        return;
+      }
+      if ((exact.qtyOnHand ?? 0) <= 0) {
+        toast.error(`${exact.medicineName} (${exact.batchNumber}) is out of stock`);
+        return;
+      }
+      addToCart(
+        { id: exact.medicineId, name: exact.medicineName },
+        {
+          id: exact.id,
+          batchNumber: exact.batchNumber,
+          sellPriceMinor: exact.sellPriceMinor,
+          buyPriceMinor: exact.buyPriceMinor,
+          qtyOnHand: exact.qtyOnHand,
+        },
+      );
+    } catch {
+      toast.error("Lookup failed");
+    }
+  };
 
   const availableBatches = useMemo(() => {
     return batches?.filter(b => b.qtyOnHand > 0) || [];
@@ -144,14 +176,25 @@ export default function POS() {
     <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] md:h-screen overflow-hidden bg-background">
       {/* Left Panel: Search & Catalog */}
       <div className="flex-1 flex flex-col p-4 border-r overflow-hidden">
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search medicine..." 
-            className="pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="flex gap-2 mb-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search medicine..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <UIButton
+            type="button"
+            variant="outline"
+            className="gap-2 shrink-0"
+            onClick={() => setScannerOpen(true)}
+          >
+            <ScanBarcode className="h-4 w-4" />
+            <span className="hidden sm:inline">Scan</span>
+          </UIButton>
         </div>
 
         <ScrollArea className="flex-1">
@@ -312,6 +355,12 @@ export default function POS() {
           </UIButton>
         </div>
       </div>
+
+      <BarcodeScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onDetected={handleScanned}
+      />
 
       {/* Batch Selection Dialog */}
       <Dialog open={!!selectedMedForBatch} onOpenChange={() => setSelectedMedForBatch(null)}>
