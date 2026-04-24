@@ -23,7 +23,6 @@ import {
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/pos", label: "POS", icon: ShoppingCart },
   { href: "/stock", label: "Stock", icon: PackageSearch },
 ];
 

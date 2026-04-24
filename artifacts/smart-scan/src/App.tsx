@@ -10,7 +10,6 @@ import Inventory from "@/pages/inventory";
 import Scan from "@/pages/scan";
 import Review from "@/pages/review";
 import BatchDetail from "@/pages/batch-detail";
-import POS from "@/pages/pos";
 import Sales from "@/pages/sales";
 import SaleDetail from "@/pages/sale-detail";
 import MedicineDetail from "@/pages/medicine-detail";
@@ -36,7 +35,6 @@ function Router() {
         <Route path="/scan" component={Scan} />
         <Route path="/scan/review" component={Review} />
         <Route path="/batch/:id" component={BatchDetail} />
-        <Route path="/pos" component={POS} />
         <Route path="/sales" component={Sales} />
         <Route path="/sales/:id" component={SaleDetail} />
         <Route path="/medicines/:id" component={MedicineDetail} />
