@@ -6,7 +6,9 @@ import {
   useCreateBatch, 
   useListMedicines, 
   useListSuppliers,
-  useCreateMedicine
+  useCreateMedicine,
+  useDeleteBatch,
+  useDeleteMedicine
 } from "@workspace/api-client-react";
 import { formatMoney } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,8 +32,21 @@ import {
   Filter,
   RefreshCw,
   Loader2,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Trash2,
+  ListChecks
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -63,10 +78,44 @@ export default function Inventory() {
     status: status === "all" ? undefined : (status as any)
   });
 
-  const { data: medicines } = useListMedicines();
+  const { data: medicines, refetch: refetchMedicines } = useListMedicines();
   const { data: suppliers } = useListSuppliers();
   const createBatchMutation = useCreateBatch();
   const createMedicineMutation = useCreateMedicine();
+  const deleteBatchMutation = useDeleteBatch();
+  const deleteMedicineMutation = useDeleteMedicine();
+
+  const [batchToDelete, setBatchToDelete] = useState<{ id: string; name: string; batchNumber: string } | null>(null);
+  const [isMedicinesDialogOpen, setIsMedicinesDialogOpen] = useState(false);
+  const [medicineToDelete, setMedicineToDelete] = useState<{ id: string; name: string } | null>(null);
+
+  const handleDeleteBatch = async () => {
+    if (!batchToDelete) return;
+    try {
+      await deleteBatchMutation.mutateAsync({ id: batchToDelete.id });
+      toast.success(`Removed batch ${batchToDelete.batchNumber}`);
+      setBatchToDelete(null);
+      refetch();
+      refetchMedicines();
+    } catch {
+      toast.error("Failed to delete batch");
+    }
+  };
+
+  const handleDeleteMedicine = async () => {
+    if (!medicineToDelete) return;
+    try {
+      await deleteMedicineMutation.mutateAsync({ id: medicineToDelete.id });
+      toast.success(`Removed ${medicineToDelete.name}`);
+      setMedicineToDelete(null);
+      refetchMedicines();
+      refetch();
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || "Cannot delete this medicine";
+      toast.error(msg);
+      setMedicineToDelete(null);
+    }
+  };
 
   // Form state for new batch
   const [newBatch, setNewBatch] = useState({
@@ -164,6 +213,10 @@ export default function Inventory() {
           <p className="text-muted-foreground">Manage medicine batches and stock levels.</p>
         </div>
         
+        <div className="flex gap-2">
+        <Button variant="outline" className="gap-2" onClick={() => setIsMedicinesDialogOpen(true)}>
+          <ListChecks className="h-4 w-4" /> Medicines
+        </Button>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -283,6 +336,7 @@ export default function Inventory() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </header>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -346,6 +400,7 @@ export default function Inventory() {
                 <TableHead>Stock</TableHead>
                 <TableHead>Expiry</TableHead>
                 <TableHead className="text-right">Price</TableHead>
+                <TableHead className="w-[60px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -361,7 +416,7 @@ export default function Inventory() {
                 ))
               ) : batches?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                     No medicine batches found.
                   </TableCell>
                 </TableRow>
@@ -413,6 +468,21 @@ export default function Inventory() {
                       <TableCell className="text-right font-medium">
                         {formatMoney(batch.sellPriceMinor)}
                       </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setBatchToDelete({
+                            id: batch.id,
+                            name: batch.medicineName,
+                            batchNumber: batch.batchNumber,
+                          })}
+                          aria-label="Delete batch"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })
@@ -421,6 +491,93 @@ export default function Inventory() {
           </Table>
         </div>
       </Card>
+
+      {/* Manage Medicines Dialog */}
+      <Dialog open={isMedicinesDialogOpen} onOpenChange={setIsMedicinesDialogOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Medicine Catalog</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground -mt-2">
+            Remove medicines no longer stocked. A medicine can only be deleted if it has no remaining stock.
+          </p>
+          <ScrollArea className="h-[400px] pr-3 -mr-3">
+            <div className="space-y-1">
+              {medicines?.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground text-sm">No medicines yet.</div>
+              )}
+              {medicines?.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between gap-3 p-2 rounded-md hover:bg-muted"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm truncate">{m.name}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {m.genericName || "—"} · Stock: {m.qtyOnHand ?? 0}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setMedicineToDelete({ id: m.id, name: m.name })}
+                    aria-label={`Delete ${m.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Batch Confirmation */}
+      <AlertDialog open={!!batchToDelete} onOpenChange={(o) => !o && setBatchToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this batch?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Removes batch <strong>{batchToDelete?.batchNumber}</strong> of{" "}
+              <strong>{batchToDelete?.name}</strong> from inventory. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteBatch}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteBatchMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete batch
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Medicine Confirmation */}
+      <AlertDialog open={!!medicineToDelete} onOpenChange={(o) => !o && setMedicineToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this medicine?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Permanently removes <strong>{medicineToDelete?.name}</strong> from your catalog.
+              This will fail if there is remaining stock or past sales tied to it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteMedicine}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMedicineMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete medicine
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

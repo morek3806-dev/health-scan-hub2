@@ -107,6 +107,73 @@ router.get("/medicines/:id", async (req, res): Promise<void> => {
   });
 });
 
+router.put("/medicines/:id", async (req, res): Promise<void> => {
+  const id = String(req.params.id);
+  const b = req.body ?? {};
+  if (!b.name || typeof b.name !== "string") {
+    res.status(400).json({ error: "name required" });
+    return;
+  }
+  const [row] = await db
+    .update(medicinesTable)
+    .set({
+      name: b.name,
+      genericName: b.genericName ?? null,
+      strength: b.strength ?? null,
+      form: b.form ?? null,
+      hsnCode: b.hsnCode ?? null,
+      gstPct: b.gstPct != null ? String(b.gstPct) : "12.00",
+      reorderLevel: typeof b.reorderLevel === "number" ? b.reorderLevel : 10,
+    })
+    .where(eq(medicinesTable.id, id))
+    .returning();
+  if (!row) {
+    res.status(404).json({ error: "not found" });
+    return;
+  }
+  res.json({
+    id: row.id,
+    name: row.name,
+    genericName: row.genericName,
+    strength: row.strength,
+    form: row.form,
+    hsnCode: row.hsnCode,
+    gstPct: Number(row.gstPct),
+    reorderLevel: row.reorderLevel,
+    isActive: row.isActive,
+    qtyOnHand: 0,
+    sellPriceMinor: 0,
+  });
+});
+
+router.delete("/medicines/:id", async (req, res): Promise<void> => {
+  const id = String(req.params.id);
+  const batches = await db
+    .select({ qty: medicineBatchesTable.qtyOnHand })
+    .from(medicineBatchesTable)
+    .where(eq(medicineBatchesTable.medicineId, id));
+  const totalStock = batches.reduce((s, b) => s + b.qtyOnHand, 0);
+  if (totalStock > 0) {
+    res.status(409).json({
+      error: "Medicine still has stock. Delete or sell all batches first.",
+    });
+    return;
+  }
+  try {
+    await db.delete(medicineBatchesTable).where(eq(medicineBatchesTable.medicineId, id));
+    const result = await db.delete(medicinesTable).where(eq(medicinesTable.id, id)).returning({ id: medicinesTable.id });
+    if (result.length === 0) {
+      res.status(404).json({ error: "not found" });
+      return;
+    }
+    res.status(204).send();
+  } catch {
+    res.status(409).json({
+      error: "Cannot delete: medicine has sales history. Mark inactive instead.",
+    });
+  }
+});
+
 export function batchView(
   b: typeof medicineBatchesTable.$inferSelect,
   med: { id: string; name: string; genericName: string | null; reorderLevel: number },

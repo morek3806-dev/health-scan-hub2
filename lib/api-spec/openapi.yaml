@@ -101,6 +101,26 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/MedicineDetail" }
+    put:
+      operationId: updateMedicine
+      tags: [medicines]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MedicineInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Medicine" }
+    delete:
+      operationId: deleteMedicine
+      tags: [medicines]
+      responses:
+        "204": { description: Deleted }
+        "409": { description: Conflict (medicine has stock or sales history) }
 
   # ─── Batches (inventory + expiry) ──────────────────────────
   /batches:

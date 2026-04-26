@@ -118,6 +118,41 @@ export const GetMedicineResponse = zod
     }),
   );
 
+export const UpdateMedicineParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const updateMedicineBodyGstPctDefault = 12;
+export const updateMedicineBodyReorderLevelDefault = 10;
+
+export const UpdateMedicineBody = zod.object({
+  name: zod.string(),
+  genericName: zod.string().nullish(),
+  strength: zod.string().nullish(),
+  form: zod.string().nullish(),
+  hsnCode: zod.string().nullish(),
+  gstPct: zod.number().default(updateMedicineBodyGstPctDefault),
+  reorderLevel: zod.number().default(updateMedicineBodyReorderLevelDefault),
+});
+
+export const UpdateMedicineResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  genericName: zod.string().nullish(),
+  strength: zod.string().nullish(),
+  form: zod.string().nullish(),
+  hsnCode: zod.string().nullish(),
+  gstPct: zod.number().optional(),
+  reorderLevel: zod.number(),
+  isActive: zod.boolean(),
+  qtyOnHand: zod.number().optional(),
+  sellPriceMinor: zod.number().optional(),
+});
+
+export const DeleteMedicineParams = zod.object({
+  id: zod.coerce.string(),
+});
+
 export const ListBatchesQueryParams = zod.object({
   status: zod.enum(["all", "low", "near_expiry", "expired"]).optional(),
   search: zod.coerce.string().optional(),
