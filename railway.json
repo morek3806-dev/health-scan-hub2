@@ -1,1 +1,8 @@
-{"build": {"builder": "NIXPACKS"}, "deploy": {"startCommand": "cd artifacts/api-server && pnpm start"}}
+{
+  "build": {
+    "buildCommand": "pnpm --filter @workspace/api-server run build"
+  },
+  "deploy": {
+    "startCommand": "pnpm --filter @workspace/api-server run start"
+  }
+}
