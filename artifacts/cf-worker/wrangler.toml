@@ -1,0 +1,8 @@
+name = "pharmacy-api"
+compatibility_date = "2026-05-01"
+main = "src/index.ts"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pharmacy-db"
+database_id = "4af4a39c-b690-46c5-8400-3d2b990bfd6c"
